@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package mainp;
+
+option go_package = "example/log-scanner-grpc/pkg";
+
+service LogScanner {
+    rpc Search(SearchRequest) returns (stream SearchResponse);
+}
+
+message SearchRequest {
+    string Path = 1;
+    string Pattern = 2;
+}
+
+message SearchResponse {
+    string File=1;
+    int32  LineNumber = 2;
+    string Content = 3;
+}
