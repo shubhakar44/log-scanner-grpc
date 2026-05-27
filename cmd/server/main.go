@@ -3,6 +3,11 @@ package main
 import (
 	Engine "example/log-scanner-grpc/internal/scrapper"
 	pb "example/log-scanner-grpc/pkg"
+	"log"
+	"net"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 type server struct {
@@ -11,17 +16,20 @@ type server struct {
 
 func (*server) Search(req *pb.SearchRequest, stream pb.LogScanner_SearchServer) error {
 	resultChannel := make(chan Engine.FileStates, 100)
-	Engine.InitiateScrapper(req.Path, req.Pattern, stream.Context(), resultChannel)
+	go Engine.InitiateScrapper(req.Path, req.Pattern, stream.Context(), resultChannel)
 	for {
 		select {
 		case <-stream.Context().Done():
 			// Client disconnected or timeout occurred
+			log.Println("Is this comiing heree")
 			return stream.Context().Err()
 		case item, ok := <-resultChannel:
 			if !ok {
+				log.Println("closed")
 				// Channel was closed by the producer; streaming is complete
 				return nil
 			}
+			log.Println("Is this comiing heree or here")
 
 			// Construct and send the response
 			resp := &pb.SearchResponse{
@@ -30,6 +38,7 @@ func (*server) Search(req *pb.SearchRequest, stream pb.LogScanner_SearchServer) 
 				Content:    item.Content,
 			}
 			if err := stream.Send(resp); err != nil {
+				log.Println("closed with err")
 				return err
 			}
 		}
@@ -37,5 +46,17 @@ func (*server) Search(req *pb.SearchRequest, stream pb.LogScanner_SearchServer) 
 }
 
 func main() {
+	lis, err := net.Listen("tcp", ":50051")
+	if err != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
+	grpcServer := grpc.NewServer()
+	pb.RegisterLogScannerServer(grpcServer, &server{})
+	reflection.Register(grpcServer)
+	log.Println("gRPC server is running on port :50051...")
+	err = grpcServer.Serve(lis)
 
+	if err != nil {
+		log.Fatalf("Failed to serve: %v", err)
+	}
 }

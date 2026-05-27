@@ -28,6 +28,7 @@ func processFiles(path string, pattern string, resultChannel chan<- FileStates) 
 		if len(line) > 0 {
 
 			if strings.Contains(line, pattern) {
+				log.Println("Its coming here", lineNumber, path)
 				resultChannel <- FileStates{LineNumber: lineNumber, File: path, Content: line}
 			}
 		}
@@ -37,7 +38,8 @@ func processFiles(path string, pattern string, resultChannel chan<- FileStates) 
 	}
 }
 
-func worker(jobQueue <-chan string, resultChannel chan<- FileStates, pattern string, ctx context.Context) {
+func worker(jobQueue <-chan string, resultChannel chan<- FileStates, pattern string, ctx context.Context, wg *sync.WaitGroup) {
+	defer wg.Done()
 	for job := range jobQueue {
 		select {
 		case <-ctx.Done():
@@ -57,11 +59,12 @@ func InitiateScrapper(path string, pattern string, ctx context.Context, resultCh
 	//Create as many worker routines as cpu cores that can run parallely
 	for cpu := 0; cpu < runtime.NumCPU(); cpu++ {
 		wg.Add(1)
-		go worker(jobQueue, resultChannel, pattern, ctx)
+		go worker(jobQueue, resultChannel, pattern, ctx, &wg)
 	}
 
 	go func() {
-		err := filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
+		targetDir := "test/logs"
+		err := filepath.WalkDir(targetDir, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				fmt.Println("Unable to read this directory", path)
 				return err
