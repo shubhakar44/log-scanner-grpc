@@ -16,7 +16,7 @@ import (
 func processFiles(path string, pattern string, resultChannel chan<- FileStates) {
 	file, err := os.Open(path)
 	if err != nil {
-		log.Fatalf("failed to open file: %s", err)
+		log.Printf("ERROR: scan error on file %s: %v", path, err)
 	}
 
 	defer file.Close()
@@ -28,13 +28,12 @@ func processFiles(path string, pattern string, resultChannel chan<- FileStates) 
 		if len(line) > 0 {
 
 			if strings.Contains(line, pattern) {
-				log.Println("Its coming here", lineNumber, path)
 				resultChannel <- FileStates{LineNumber: lineNumber, File: path, Content: line}
 			}
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		log.Fatalf("error during scan: %s", err)
+		log.Printf("ERROR: scan error on file %s: %v", path, err)
 	}
 }
 
@@ -63,7 +62,7 @@ func InitiateScrapper(path string, pattern string, ctx context.Context, resultCh
 	}
 
 	go func() {
-		targetDir := "test/logs"
+		targetDir := path
 		err := filepath.WalkDir(targetDir, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				fmt.Println("Unable to read this directory", path)
@@ -82,5 +81,6 @@ func InitiateScrapper(path string, pattern string, ctx context.Context, resultCh
 	}()
 
 	wg.Wait()
+	close(resultChannel)
 
 }

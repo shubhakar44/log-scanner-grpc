@@ -21,15 +21,18 @@ func (*server) Search(req *pb.SearchRequest, stream pb.LogScanner_SearchServer) 
 		select {
 		case <-stream.Context().Done():
 			// Client disconnected or timeout occurred
-			log.Println("Is this comiing heree")
 			return stream.Context().Err()
 		case item, ok := <-resultChannel:
 			if !ok {
-				log.Println("closed")
 				// Channel was closed by the producer; streaming is complete
 				return nil
 			}
-			log.Println("Is this comiing heree or here")
+
+			select {
+			case <-stream.Context().Done():
+				return stream.Context().Err()
+			default:
+			}
 
 			// Construct and send the response
 			resp := &pb.SearchResponse{
@@ -38,7 +41,6 @@ func (*server) Search(req *pb.SearchRequest, stream pb.LogScanner_SearchServer) 
 				Content:    item.Content,
 			}
 			if err := stream.Send(resp); err != nil {
-				log.Println("closed with err")
 				return err
 			}
 		}

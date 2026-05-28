@@ -9,12 +9,12 @@ service LogScanner {
 }
 
 message SearchRequest {
-    string Path = 1;
-    string Pattern = 2;
+    string path = 1;
+    string pattern = 2;
 }
 
 message SearchResponse {
-    string File=1;
-    int32  LineNumber = 2;
-    string Content = 3;
+    string file=1;
+    int32  lineNumber = 2;
+    string content = 3;
 }
