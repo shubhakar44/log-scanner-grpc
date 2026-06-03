@@ -1,6 +1,7 @@
 package main
 
 import (
+	db "example/log-scanner-grpc/internal/database"
 	Engine "example/log-scanner-grpc/internal/scrapper"
 	pb "example/log-scanner-grpc/pkg"
 	"log"
@@ -16,20 +17,26 @@ type server struct {
 
 func (*server) Search(req *pb.SearchRequest, stream pb.LogScanner_SearchServer) error {
 	resultChannel := make(chan Engine.FileStates, 100)
+	pool := db.Init(stream.Context())
+	log.Println("Query and Path", req)
+	db.Insert(pool, req.Pattern, req.Path, stream.Context())
 	go Engine.InitiateScrapper(req.Path, req.Pattern, stream.Context(), resultChannel)
 	for {
 		select {
 		case <-stream.Context().Done():
 			// Client disconnected or timeout occurred
+			pool.Close()
 			return stream.Context().Err()
 		case item, ok := <-resultChannel:
 			if !ok {
 				// Channel was closed by the producer; streaming is complete
+				pool.Close()
 				return nil
 			}
 
 			select {
 			case <-stream.Context().Done():
+				pool.Close()
 				return stream.Context().Err()
 			default:
 			}
@@ -41,6 +48,7 @@ func (*server) Search(req *pb.SearchRequest, stream pb.LogScanner_SearchServer) 
 				Content:    item.Content,
 			}
 			if err := stream.Send(resp); err != nil {
+				pool.Close()
 				return err
 			}
 		}
