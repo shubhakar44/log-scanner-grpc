@@ -9,7 +9,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func Init(ctx context.Context) *pgxpool.Pool {
+func Init(ctx context.Context) (*pgxpool.Pool, error) {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatalf("Error loading .env file: %v", err)
@@ -18,7 +18,7 @@ func Init(ctx context.Context) *pgxpool.Pool {
 
 	if err != nil {
 		log.Printf("Unable to create connection pool: %v\n", err)
-		return nil
+		return nil, err
 	}
 
 	_, err = dbpool.Exec(ctx, `
@@ -32,9 +32,9 @@ func Init(ctx context.Context) *pgxpool.Pool {
 
 	if err != nil {
 		log.Printf("Unable to create table: %v\n", err)
-		return nil
+		return nil, err
 	}
-	return dbpool
+	return dbpool, nil
 }
 
 func Insert(dbCon *pgxpool.Pool, query string, path string, ctx context.Context) {
